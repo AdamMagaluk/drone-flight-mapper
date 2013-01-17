@@ -1,0 +1,107 @@
+<html>
+<head>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.5/leaflet.css" />
+<!--[if lte IE 8]>
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.5/leaflet.ie.css" />
+<![endif]-->
+
+<script src="http://cdn.leafletjs.com/leaflet-0.5/leaflet.js"></script>
+
+    <style>
+     #map { height: 500px; width: 500px;}
+    </style>
+
+    
+
+    
+
+    <script>
+        $(function(){
+            var iosocket = io.connect();
+ 
+            iosocket.on('connect', function () {
+                $('#incomingChatMessages').append($('<li>Connected</li>'));
+ 
+                iosocket.on('message', function(message) {
+                    $('#incomingChatMessages').append($('<li></li>').text(message));
+                });
+                iosocket.on('disconnect', function() {
+                    $('#incomingChatMessages').append('<li>Disconnected</li>');
+                });
+            });
+ 
+            $('#outgoingChatMessage').keypress(function(event) {
+                if(event.which == 13) {
+                    event.preventDefault();
+                    iosocket.send($('#outgoingChatMessage').val());
+                    $('#incomingChatMessages').append($('<li></li>').text($('#outgoingChatMessage').val()));
+                    $('#outgoingChatMessage').val('');
+                }
+            });
+
+            var center = [-250,250];
+            var map = L.map('map',{
+                dragging : false,
+                touchZoom : false,
+                scrollWheelZoom : false,
+                doubleClickZoom : false,
+                boxZoom : false,
+                trackResize : false,
+                keyboard : false,
+                zoomControl : false,
+                attributionControl : false,
+                drawControl: false,
+                crs : L.CRS.Simple
+            }).setView(center);
+
+            var markers = [];
+            var line = null;
+            map.on('click',function(e){
+                var marker = L.circle(e.latlng,0 ,{stroke : false,color: "#000",fillOpacity :1.0}).addTo(map);
+                markers.push({marker:marker,pos : e.latlng});
+                redrawLines();
+            })
+
+            function redrawLines(){
+                var pos = [];
+                markers.forEach(function(m){ pos.push(m.pos) });
+
+                if(line  != null)
+                    map.removeLayer(line)
+
+                if(pos.length != 0)
+                    line = L.polyline(pos, {color: 'red'}).addTo(map);  
+            }
+
+            $("#removeLast").click(function(){
+                if(markers.length > 0){
+                    var m = markers[markers.length-1];
+                    map.removeLayer(m.marker);
+                    markers.splice(markers.length-1,1);
+                }
+                redrawLines();
+            })
+
+
+            $("#download").click(function(){
+                if(markers.length < 2) return;
+                for(var i=0;i<markers.length-1;i++){
+                    var p1 = new L.Point(markers[i].pos.lng,markers[i].pos.lat);
+                    var p2 = new L.Point(markers[i+1].pos.lng,markers[i+1].pos.lat);
+                    var dx = p2.x-p1.x;
+                    var dy = p2.y-p1.y;
+                }    
+            })            
+
+        });
+    </script>
+</head>
+<body>
+    <div id="map"></div>
+    <button id="removeLast">Remove Last</button>
+    <button id="download">Download</button>
+</body>
+</html>
